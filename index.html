@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#1f2937" />
+  <title>Nonogram Line Solver</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d8deea;
+      --filled: #334865;
+      --empty: #c63d3d;
+      --forced: #0f766e;
+      --accent: #2f5fb3;
+      --tap: #eef3ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 16px 14px 28px;
+    }
+    h1 {
+      font-size: 1.45rem;
+      margin: 8px 0 6px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+      line-height: 1.35;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 1px 2px rgba(16,24,40,.04);
+      margin-bottom: 14px;
+    }
+    .label {
+      font-weight: 650;
+      margin-bottom: 6px;
+      display: block;
+    }
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid #c7d1e3;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      outline: none;
+      background: #fff;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(47,95,179,.12);
+    }
+    .help {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-top: 7px;
+      line-height: 1.3;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.98rem;
+      font-weight: 650;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .primary {
+      background: var(--accent);
+      color: white;
+      flex: 1 1 180px;
+    }
+    .secondary {
+      background: #eaf0fb;
+      color: var(--accent);
+      flex: 1 1 120px;
+    }
+    .tiny {
+      background: #eff3f8;
+      color: #475467;
+      padding: 8px 10px;
+      font-size: .88rem;
+    }
+    .strip-wrap {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .strip {
+      display: grid;
+      grid-template-columns: repeat(20, 42px);
+      gap: 4px;
+      min-width: max-content;
+      align-items: start;
+    }
+    .idx, .cell {
+      width: 42px;
+    }
+    .idx {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 6px;
+    }
+    .cell {
+      height: 42px;
+      border-radius: 10px;
+      border: 1px solid #cfd7e6;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    .cell.unknown { background: #fff; color: transparent; }
+    .cell.filled { background: var(--filled); border-color: var(--filled); color: #fff; }
+    .cell.empty  { background: #fff; color: var(--empty); }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .chip {
+      font-size: .83rem;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      background: #fbfcff;
+      color: #344054;
+    }
+    .result-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .line-preview {
+      display: grid;
+      grid-template-columns: repeat(20, 30px);
+      gap: 3px;
+      overflow-x: auto;
+      min-width: max-content;
+      padding-bottom: 2px;
+    }
+    .mini {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      border: 1px solid #cfd7e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .mini.filled { background: var(--forced); border-color: var(--forced); color: #fff; }
+    .mini.empty { color: var(--empty); background: #fff; }
+    .mini.unknown { background: #f8fafc; color: #c0c8d6; }
+    .stat {
+      font-size: .98rem;
+      line-height: 1.45;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95rem;
+    }
+    .footer {
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.35;
+    }
+    details {
+      margin-top: 10px;
+    }
+    summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 650;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Nonogram Line Solver</h1>
+    <div class="sub">Single-row / single-column forced-cell finder for a 20×20 puzzle. Enter the clue numbers, tap the strip to mark any cells you already know, then solve.</div>
+
+    <div class="card">
+      <label class="label" for="clues">Clues</label>
+      <input id="clues" type="text" inputmode="numeric" placeholder="Example: 11,3 or 3 2 5" value="11,3" />
+      <div class="help">Enter 1–5 numbers, separated by commas or spaces.</div>
+
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="tiny" id="modeUnknown">Tap mode: Unknown</button>
+        <button class="tiny" id="modeFilled">Tap mode: Fill</button>
+        <button class="tiny" id="modeEmpty">Tap mode: X</button>
+      </div>
+
+      <div style="margin-top:12px;" class="label">Current line state</div>
+      <div class="strip-wrap">
+        <div class="strip" id="indexRow"></div>
+        <div class="strip" id="inputStrip"></div>
+      </div>
+      <div class="legend">
+        <div class="chip">Tap a square to cycle it</div>
+        <div class="chip">Blank = unknown</div>
+        <div class="chip">Blue = filled</div>
+        <div class="chip">X = empty</div>
+      </div>
+
+      <div class="toolbar">
+        <button class="primary" id="solveBtn">Solve line</button>
+        <button class="secondary" id="clearBtn">Clear strip</button>
+      </div>
+
+      <details>
+        <summary>Typed-state option</summary>
+        <div class="help" style="margin-top:8px;">You can also paste a 20-character state string using <span class="mono">.</span> for unknown, <span class="mono">#</span> for filled, and <span class="mono">x</span> for empty.</div>
+        <input id="stateText" type="text" placeholder="...................." maxlength="20" style="margin-top:8px;" />
+        <div class="toolbar" style="margin-top:10px;">
+          <button class="secondary" id="applyStateBtn">Apply typed state</button>
+          <button class="secondary" id="copyStateBtn">Copy current state</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="card" id="resultsCard">
+      <div class="label">Results</div>
+      <div id="results" class="result-grid">
+        <div class="stat">No line solved yet.</div>
+      </div>
+    </div>
+
+    <div class="footer">This tool checks all valid placements for the single line and reports only the cells that are forced across every valid placement.</div>
+  </div>
+
+  <script>
+    const LENGTH = 20;
+    const UNKNOWN = -1;
+    const EMPTY = 0;
+    const FILLED = 1;
+
+    const state = Array(LENGTH).fill(UNKNOWN);
+    let tapMode = null; // null = cycle
+
+    const indexRow = document.getElementById('indexRow');
+    const inputStrip = document.getElementById('inputStrip');
+    const resultsEl = document.getElementById('results');
+    const cluesInput = document.getElementById('clues');
+    const stateText = document.getElementById('stateText');
+
+    function renderIndex() {
+      indexRow.innerHTML = '';
+      for (let i = 0; i < LENGTH; i++) {
+        const d = document.createElement('div');
+        d.className = 'idx';
+        d.textContent = i + 1;
+        indexRow.appendChild(d);
+      }
+    }
+
+    function stateClass(v) {
+      if (v === FILLED) return 'filled';
+      if (v === EMPTY) return 'empty';
+      return 'unknown';
+    }
+
+    function stateTextValue(v) {
+      if (v === FILLED) return '■';
+      if (v === EMPTY) return '✕';
+      return '';
+    }
+
+    function renderInputStrip() {
+      inputStrip.innerHTML = '';
+      for (let i = 0; i < LENGTH; i++) {
+        const b = document.createElement('button');
+        b.className = `cell ${stateClass(state[i])}`;
+        b.textContent = stateTextValue(state[i]);
+        b.setAttribute('aria-label', `Cell ${i + 1}`);
+        b.addEventListener('click', () => {
+          if (tapMode === FILLED) state[i] = FILLED;
+          else if (tapMode === EMPTY) state[i] = EMPTY;
+          else if (tapMode === UNKNOWN) state[i] = UNKNOWN;
+          else state[i] = state[i] === UNKNOWN ? FILLED : state[i] === FILLED ? EMPTY : UNKNOWN;
+          syncStateText();
+          renderInputStrip();
+        });
+        inputStrip.appendChild(b);
+      }
+    }
+
+    function syncStateText() {
+      stateText.value = state.map(v => v === UNKNOWN ? '.' : v === FILLED ? '#' : 'x').join('');
+    }
+
+    function parseClues(raw) {
+      const trimmed = raw.trim();
+      if (!trimmed) return [];
+      const parts = trimmed.split(/[\s,]+/).filter(Boolean);
+      const nums = parts.map(p => Number(p));
+      if (nums.some(n => !Number.isInteger(n) || n <= 0)) {
+        throw new Error('Clues must be positive whole numbers.');
+      }
+      if (nums.length > 5) {
+        throw new Error('Use at most 5 clue numbers.');
+      }
+      const minimum = nums.reduce((a,b)=>a+b,0) + Math.max(0, nums.length - 1);
+      if (minimum > LENGTH) {
+        throw new Error('Those clues cannot fit in 20 cells.');
+      }
+      return nums;
+    }
+
+    function generateValidLines(length, clues, known) {
+      const results = [];
+
+      function partialMatches(line) {
+        for (let i = 0; i < line.length; i++) {
+          if (known[i] !== UNKNOWN && known[i] !== line[i]) return false;
+        }
+        return true;
+      }
+
+      function completeMatches(line) {
+        for (let i = 0; i < length; i++) {
+          if (known[i] !== UNKNOWN && known[i] !== line[i]) return false;
+        }
+        return true;
+      }
+
+      function recurse(clueIndex, pos, line) {
+        if (clueIndex === clues.length) {
+          const completed = line.concat(Array(length - line.length).fill(EMPTY));
+          if (completeMatches(completed)) results.push(completed);
+          return;
+        }
+
+        const blockLen = clues[clueIndex];
+        const remaining = clues.slice(clueIndex + 1);
+        const minRemaining = remaining.length ? remaining.reduce((a,b)=>a+b,0) + remaining.length : 0;
+        const maxStart = length - blockLen - minRemaining;
+
+        for (let start = pos; start <= maxStart; start++) {
+          const newLine = line.slice();
+          while (newLine.length < start) newLine.push(EMPTY);
+          for (let i = 0; i < blockLen; i++) newLine.push(FILLED);
+          if (clueIndex < clues.length - 1) newLine.push(EMPTY);
+          if (partialMatches(newLine)) recurse(clueIndex + 1, newLine.length, newLine);
+        }
+      }
+
+      if (clues.length === 0) {
+        const allEmpty = Array(length).fill(EMPTY);
+        if (completeMatches(allEmpty)) return [allEmpty];
+        return [];
+      }
+
+      recurse(0, 0, []);
+      return results;
+    }
+
+    function forcedCells(validLines) {
+      if (!validLines.length) return null;
+      const out = [];
+      for (let i = 0; i < validLines[0].length; i++) {
+        const val = validLines[0][i];
+        let same = true;
+        for (let j = 1; j < validLines.length; j++) {
+          if (validLines[j][i] !== val) {
+            same = false;
+            break;
+          }
+        }
+        out.push(same ? val : UNKNOWN);
+      }
+      return out;
+    }
+
+    function renderResults(validLines, forced) {
+      if (!validLines.length) {
+        resultsEl.innerHTML = '<div class="stat">No valid placements fit those clues and the current line state.</div>';
+        return;
+      }
+
+      const forcedFilled = [];
+      const forcedEmpty = [];
+      forced.forEach((v, i) => {
+        if (v === FILLED) forcedFilled.push(i + 1);
+        if (v === EMPTY) forcedEmpty.push(i + 1);
+      });
+
+      const preview = forced.map(v => {
+        const cls = v === FILLED ? 'filled' : v === EMPTY ? 'empty' : 'unknown';
+        const txt = v === FILLED ? '■' : v === EMPTY ? '✕' : '·';
+        return `<div class="mini ${cls}">${txt}</div>`;
+      }).join('');
+
+      resultsEl.innerHTML = `
+        <div class="stat"><strong>Valid placements:</strong> ${validLines.length}</div>
+        <div class="stat"><strong>Forced filled cells:</strong> ${forcedFilled.length ? forcedFilled.join(', ') : 'None'}</div>
+        <div class="stat"><strong>Forced empty cells:</strong> ${forcedEmpty.length ? forcedEmpty.join(', ') : 'None'}</div>
+        <div>
+          <div class="help" style="margin-bottom:8px;">Consensus view for this line</div>
+          <div class="line-preview">${preview}</div>
+        </div>
+      `;
+    }
+
+    function solve() {
+      try {
+        const clues = parseClues(cluesInput.value);
+        const valid = generateValidLines(LENGTH, clues, state.slice());
+        const forced = forcedCells(valid);
+        renderResults(valid, forced || []);
+      } catch (err) {
+        resultsEl.innerHTML = `<div class="stat">${err.message}</div>`;
+      }
+    }
+
+    document.getElementById('solveBtn').addEventListener('click', solve);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      for (let i = 0; i < LENGTH; i++) state[i] = UNKNOWN;
+      syncStateText();
+      renderInputStrip();
+      resultsEl.innerHTML = '<div class="stat">No line solved yet.</div>';
+    });
+
+    document.getElementById('applyStateBtn').addEventListener('click', () => {
+      const txt = stateText.value.trim();
+      if (txt.length !== LENGTH) {
+        resultsEl.innerHTML = `<div class="stat">Typed state must be exactly ${LENGTH} characters long.</div>`;
+        return;
+      }
+      for (let i = 0; i < LENGTH; i++) {
+        const ch = txt[i].toLowerCase();
+        if (ch === '.') state[i] = UNKNOWN;
+        else if (ch === '#') state[i] = FILLED;
+        else if (ch === 'x') state[i] = EMPTY;
+        else {
+          resultsEl.innerHTML = '<div class="stat">Use only ., #, and x in the typed state.</div>';
+          return;
+        }
+      }
+      renderInputStrip();
+    });
+
+    document.getElementById('copyStateBtn').addEventListener('click', async () => {
+      syncStateText();
+      try {
+        await navigator.clipboard.writeText(stateText.value);
+        resultsEl.innerHTML = '<div class="stat">Current state copied.</div>';
+      } catch {
+        resultsEl.innerHTML = '<div class="stat">Copy failed. You can still copy the text manually.</div>';
+      }
+    });
+
+    document.getElementById('modeUnknown').addEventListener('click', () => tapMode = UNKNOWN);
+    document.getElementById('modeFilled').addEventListener('click', () => tapMode = FILLED);
+    document.getElementById('modeEmpty').addEventListener('click', () => tapMode = EMPTY);
+
+    renderIndex();
+    syncStateText();
+    renderInputStrip();
+  </script>
+</body>
+</html>
